@@ -1,5 +1,4 @@
-# Coffee biomarkers or related compounds and pancreatic cancer in EPIC
-# Pancreatic case-control, n=326, 163 cases and controls
+# Data prep and models for the EPIC GC metabolomics case control study
 library(readr)
 library(readxl)
 library(tidyverse)
