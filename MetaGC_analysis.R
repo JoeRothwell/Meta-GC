@@ -206,31 +206,16 @@ ggplot(res.hpp, aes(x = estimate, y = -log10(p.value))) + geom_point(shape = 1) 
 
 
 # Correlations----
-# *To be updated for pos and neg togther*
-# First rename res.adj to res.adj.pos and res.adj.neg as appropriate
-#sig.posfeats <- res.adj.pos %>% filter(p.adj < 0.05) %>% pull(feat.no)
-#sig.negfeats <- res.adj.neg %>% filter(p.adj < 0.05) %>% pull(feat.no)
+# Extract discriminants from peak tables
 sig.feats <- res.adj %>% filter(p.adj < 0.05) %>% pull(feat.no)
-
-# Get intensities of discriminants from peak tables and bind together
-#posints.sig <- posints[, sig.posfeats]
-#negints.sig <- negints[, sig.negfeats]
 ints.sig <- posints[, sig.feats]
-
-#logmat <- cbind(posints.sig, negints.sig) %>% log10
 logmat <- log10(ints.sig)
 
 # Get feature names
-#posnames <- paste("Neg", res.adj.pos[sig.posfeats, ]$feature)
-#negnames <- paste("Pos", res.adj.neg[sig.negfeats, ]$feature)
-#sigfeatnames <- c(posnames, negnames)
-
 allnames <- res.adj[sig.feats, ]$feature
 
 library(corrplot)
 cormat <- cor(logmat, method = "pearson")
-#colnames(cormat) <- sigfeatnames
-#rownames(cormat) <- sigfeatnames
 colnames(cormat) <- allnames
 rownames(cormat) <- allnames
 
