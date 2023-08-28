@@ -12,8 +12,8 @@ setwd("/data/Epic_Meta_GC/files")
 # Read in participant data and pos and neg data, removing unneeded cols from feature tables
 dat <- read_sas("meta_gc_caco.sas7bdat")
 pos <- read_sas("meta_gc_untg_rp_pos_metabo.sas7bdat") %>% select(-(Idepic_Bio:Cncr_Caco_Stom))
-neg <- read_sas("meta_gc_untg_rp_neg_metabo.sas7bdat") %>% 
-  select(-(Idepic_Bio:Center)) %>% select(-Match_Caseset, -Cncr_Caco_Stom, -X)
+neg <- read_sas("meta_gc_untg_rp_neg_metabo.sas7bdat") %>%
+  select(-(Idepic_Bio:Center)) %>% select(-Match_Caseset, -Cncr_Caco_Stom)
 # Features are in columns
 
 # Concatenate pos and neg features
@@ -31,10 +31,16 @@ posdat <- right_join(dat, posneg, by = "Idepic")
 # Subset metabolomics data only using prefix. Log2 transform data.
 posints <- posdat %>% select(starts_with("Untg_Rp")) %>% as.matrix() %>% log2()
 
-# Get feature names from data frame label
-# Apply attr() across colnames of posints to get vector of feature names
-#features <- sapply(pos[ , 1:dim(posints)[2]], attr, "label") %>% unname
-features <- colnames(posints)
+# Get feature names from data frame label. First make a vector of modes
+mode <- c(rep("pos", ncol(pos)), rep("neg", 2689-ncol(pos)))
+
+# Apply attr() across colnames of posints to get m/z and RT
+features <- sapply(posneg[ , 1:ncol(posints)], attr, "label") %>% unname
+
+# Paste mode and m/z together to get names
+featnames <- paste(mode, features, sep = "_")
+
+#features <- colnames(posints)
 
 # Function to apply CLR across metabolomics matrix. Matching factors are study centre, sex, age at blood 
 # collection, time of blood collection, fasting status, menopausal status, exogenous hormone use, phase 
@@ -70,7 +76,7 @@ mod.adj <- apply(posints, 2, clr.adj)
 
 library(broom)
 res.adj <- map_df(mod.adj, tidy, exponentiate = T, conf.int = T) %>% 
-  filter(term == "x") %>% mutate(p.adj = p.adjust(p.value, method = "fdr"), feature = features) %>%
+  filter(term == "x") %>% mutate(p.adj = p.adjust(p.value, method = "fdr"), feature = featnames) %>%
   select(feature, everything(), -term) %>% mutate(feat.no = 1:length(mod.adj))
 
 # Format OR and CI
@@ -93,7 +99,7 @@ mod.max <- apply(posints, 2, clr.max)
 
 # Extract results
 res.max <- map_df(mod.max, tidy, exponentiate = T, conf.int = T) %>% 
-  filter(term == "x") %>% mutate(p.adj = p.adjust(p.value, method = "fdr"), feature = features) %>%
+  filter(term == "x") %>% mutate(p.adj = p.adjust(p.value, method = "fdr"), feature = featnames) %>%
   select(feature, everything(), -term) %>% mutate(feat.no = 1:length(mod.max))
 
 # Format OR and CI
@@ -117,7 +123,7 @@ mod.max <- apply(posints, 2, clr.max)
 
 # Extract results
 res.max <- map_df(mod.max, tidy, exponentiate = T, conf.int = T) %>% 
-  filter(term == "x") %>% mutate(p.adj = p.adjust(p.value, method = "fdr"), feature = features) %>%
+  filter(term == "x") %>% mutate(p.adj = p.adjust(p.value, method = "fdr"), feature = featnames) %>%
   select(feature, everything(), -term) %>% mutate(feat.no = 1:length(mod.max))
 
 # Format OR and CI
@@ -144,14 +150,14 @@ clr.hpp <- function(x) clogit(Cncr_Caco_Stom ~ x + Bmi_C + Smoke_Stat + Pa_Total
 mod.hpp <- apply(posints, 2, clr.hpp)
 
 res.hpp <- map_df(mod.hpp, tidy, exponentiate = T, conf.int = T) %>% 
-  filter(term == "x") %>% mutate(p.adj = p.adjust(p.value, method = "fdr"), feature = features) %>%
+  filter(term == "x") %>% mutate(p.adj = p.adjust(p.value, method = "fdr"), feature = featnames) %>%
   select(feature, everything(), -term) %>% mutate(feat.no = 1:length(mod.hpp))
 
 tab.hpp <- res.hpp %>%
   select(feature, estimate, conf.low, conf.high, everything()) %>%
   mutate_at(vars(estimate:conf.high), ~ format(round(., digits = 2), nsmall = 2)) %>% 
   mutate(B1 = " (", hyph = "-", B2 = ")") %>%
-  unite("CI95", B1, conf.low, hyph, conf.high, B2, sep = "") %>% filter(p.adj < 0.05)
+  unite("CI95", B1, conf.low, hyph, conf.high, B2, sep = "") %>% filter(p.adj < 0.20)
 
 
 # Plots. First need to calculate FDR p-value thresholds
@@ -202,24 +208,32 @@ ggplot(res.hpp, aes(x = estimate, y = -log10(p.value))) + geom_point(shape = 1) 
 # Correlations----
 # *To be updated for pos and neg togther*
 # First rename res.adj to res.adj.pos and res.adj.neg as appropriate
-sig.posfeats <- res.adj.pos %>% filter(p.adj < 0.05) %>% pull(feat.no)
-sig.negfeats <- res.adj.neg %>% filter(p.adj < 0.05) %>% pull(feat.no)
+#sig.posfeats <- res.adj.pos %>% filter(p.adj < 0.05) %>% pull(feat.no)
+#sig.negfeats <- res.adj.neg %>% filter(p.adj < 0.05) %>% pull(feat.no)
+sig.feats <- res.adj %>% filter(p.adj < 0.05) %>% pull(feat.no)
 
 # Get intensities of discriminants from peak tables and bind together
-posints.sig <- posints[, sig.posfeats]
-negints.sig <- negints[, sig.negfeats]
-logmat <- cbind(posints.sig, negints.sig) %>% log10
+#posints.sig <- posints[, sig.posfeats]
+#negints.sig <- negints[, sig.negfeats]
+ints.sig <- posints[, sig.feats]
+
+#logmat <- cbind(posints.sig, negints.sig) %>% log10
+logmat <- log10(ints.sig)
 
 # Get feature names
-posnames <- paste("Neg", res.adj.pos[sig.posfeats, ]$feature)
-negnames <- paste("Pos", res.adj.neg[sig.negfeats, ]$feature)
-sigfeatnames <- c(posnames, negnames)
+#posnames <- paste("Neg", res.adj.pos[sig.posfeats, ]$feature)
+#negnames <- paste("Pos", res.adj.neg[sig.negfeats, ]$feature)
+#sigfeatnames <- c(posnames, negnames)
 
+allnames <- res.adj[sig.feats, ]$feature
 
 library(corrplot)
 cormat <- cor(logmat, method = "pearson")
-colnames(cormat) <- sigfeatnames
-rownames(cormat) <- sigfeatnames
+#colnames(cormat) <- sigfeatnames
+#rownames(cormat) <- sigfeatnames
+colnames(cormat) <- allnames
+rownames(cormat) <- allnames
+
 corrplot(cormat, method = "square", order = "hclust", tl.col = "black")
 
 # Get cluster order (assign corrplot to corp first)
