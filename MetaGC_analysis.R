@@ -59,6 +59,12 @@ posdat$fv_total <- posdat$QgE0401 + posdat$QgE02
 # Other potential variables to be adjusted for (from Selenium SAS script ORs - tertiles - BY HPPOS): 
 # Red and processed meat, citrus fruit, non-citrus fresh fruit, haem iron intake, fruit and vegetable intake
 
+# Run PC-PR2 to get proportions of variability in metabolomics data explained by covariates 
+library(pcpr2)
+output <- runPCPR2(posints, posdat[, c("Country", "Sex", "Bmi_C", "Smoke_Stat", "Fasting_C", "HPPOS2")])
+plot(output, col = "red")
+
+
 library(survival)
 # Raw model (not used)
 #clr.raw <- function(x) clogit(Cncr_Caco_Stom ~ x + strata(Match_Caseset.x), data = posdat)
@@ -157,7 +163,7 @@ tab.hpp <- res.hpp %>%
   select(feature, estimate, conf.low, conf.high, everything()) %>%
   mutate_at(vars(estimate:conf.high), ~ format(round(., digits = 2), nsmall = 2)) %>% 
   mutate(B1 = " (", hyph = "-", B2 = ")") %>%
-  unite("CI95", B1, conf.low, hyph, conf.high, B2, sep = "") %>% filter(p.adj < 0.20)
+  unite("CI95", B1, conf.low, hyph, conf.high, B2, sep = "") %>% filter(p.adj < 0.05)
 
 
 # Plots. First need to calculate FDR p-value thresholds
@@ -216,7 +222,7 @@ allnames <- res.adj[sig.feats, ]$feature
 
 library(corrplot)
 cormat <- cor(logmat, method = "pearson")
-colnames(cormat) <- allnames
+colnames(cormat) <- NULL
 rownames(cormat) <- allnames
 
 corrplot(cormat, method = "square", order = "hclust", tl.col = "black")
