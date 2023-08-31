@@ -61,7 +61,7 @@ posdat$fv_total <- posdat$QgE0401 + posdat$QgE02
 
 # Run PC-PR2 to get proportions of variability in metabolomics data explained by covariates 
 library(pcpr2)
-output <- runPCPR2(posints, posdat[, c("Country", "Sex", "Bmi_C", "Smoke_Stat", "Fasting_C", "HPPOS2")])
+output <- runPCPR2(posints, posdat[, c("Center", "Sex", "Bmi_C", "Smoke_Stat", "Fasting_C", "HPPOS2")])
 plot(output, col = "red")
 
 
